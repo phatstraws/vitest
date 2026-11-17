@@ -10,7 +10,7 @@ function yamlString(str: string | undefined): string {
   if (!str) {
     return ''
   }
-  return `"${str.replace(/"/g, '\\"')}"`
+  return JSON.stringify(str)
 }
 
 function tapString(str: string): string {

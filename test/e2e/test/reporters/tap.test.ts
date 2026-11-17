@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { runVitest } from '#test-utils'
+import { runInlineTests, runVitest } from '#test-utils'
 
 test('handle custom error without name', async () => {
   let { stdout, stderr } = await runVitest({
@@ -78,4 +78,47 @@ test('tap-flat handles custom error without name', async () => {
     "
   `)
   expect(stderr).toBe('')
+})
+
+test('escapes error values as valid YAML strings', async () => {
+  let { stdout } = await runInlineTests(
+    {
+      'basic.test.ts': `
+        import { expect, test } from 'vitest'
+
+        test('multiline', () => {
+          expect({ a: 1 }).toEqual({ a: 2 })
+        })
+
+        test('backslash', () => {
+          expect('C:\\\\temp').toBe('C:\\\\other')
+        })
+      `,
+    },
+    { reporters: 'tap-flat' },
+  )
+  stdout = stdout.replaceAll(/time=(\S*)/g, 'time=[...]').replaceAll(/at: ".*"/g, 'at: [...]')
+  expect(stdout).toMatchInlineSnapshot(`
+    "TAP version 13
+    1..2
+    not ok 1 - basic.test.ts > multiline # time=[...]
+        ---
+        error:
+            name: "AssertionError"
+            message: "expected { a: 1 } to deeply equal { a: 2 }"
+        at: [...]
+        actual: "{\\n  \\"a\\": 1,\\n}"
+        expected: "{\\n  \\"a\\": 2,\\n}"
+        ...
+    not ok 2 - basic.test.ts > backslash # time=[...]
+        ---
+        error:
+            name: "AssertionError"
+            message: "expected 'C:\\\\temp' to be 'C:\\\\other' // Object.is equality"
+        at: [...]
+        actual: "C:\\\\temp"
+        expected: "C:\\\\other"
+        ...
+    "
+  `)
 })
